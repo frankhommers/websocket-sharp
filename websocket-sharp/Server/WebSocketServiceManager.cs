@@ -30,7 +30,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using WebSocketSharp.Net;
 
@@ -310,17 +312,21 @@ namespace WebSocketSharp.Server
       }
     }
 
-    internal bool InternalTryGetServiceHost (string path, out WebSocketServiceHost host)
+    internal bool InternalTryGetServiceHost(string path, out WebSocketServiceHost host)
     {
       bool ret;
-      lock (_sync) {
-        path = HttpUtility.UrlDecode (path).TrimEndSlash ();
-        ret = _hosts.TryGetValue (path, out host);
+      lock (_sync)
+      {
+        path = HttpUtility.UrlDecode(path).TrimEndSlash();
+        var results = from result in _hosts
+                      where Regex.Match(path, result.Key, RegexOptions.Singleline).Success
+                      select result;
+        ret = results.Any();
+        host = results.FirstOrDefault().Value;
       }
-
       if (!ret)
-        _logger.Error (
-          "A WebSocket service with the specified path isn't found:\n  path: " + path);
+        _logger.Error(
+            "A WebSocket service with the specified path isn't found:\n  path: " + path);
 
       return ret;
     }
